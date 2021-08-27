@@ -1,0 +1,16 @@
+[package]
+name = "unicode_info"
+version = "0.1.0"
+edition = "2018"
+
+[lib]
+name = "unicode_info"
+path = "src/api.rs"
+
+[[bin]]
+name = "generate_js_files"
+path = "src/bin/generate_js_files.rs"
+
+[dependencies]
+quote = "1.0"
+syn = { version = "1.0", features = ["full", "fold"] }
