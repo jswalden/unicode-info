@@ -5,7 +5,7 @@ use crate::constants::{LINE_TERMINATOR, WHITE_SPACE};
 
 pub type CodePointSet = HashSet::<u32>;
 
-pub fn collect_spaces(code_point_table: &code_point_table::CodePointTable) -> CodePointSet {
+pub fn compute_white_space(code_point_table: &code_point_table::CodePointTable) -> CodePointSet {
   let mut space_set = CodePointSet::new();
   for (code, info) in code_point_table.iter() {
     if info.category == "Zs" ||
@@ -20,7 +20,14 @@ pub fn collect_spaces(code_point_table: &code_point_table::CodePointTable) -> Co
 #[test]
 fn space_set_contains() {
   let table = code_point_table::generate_code_point_table();
-  let spaces = collect_spaces(&table);
-  assert!(spaces.contains(&('\r' as u32)));
-  assert!(spaces.contains(&('\n' as u32)));
+  let spaces = compute_white_space(&table);
+  assert!(spaces.contains(&0x0009));
+  assert!(spaces.contains(&0x000B));
+  assert!(spaces.contains(&0x000D));
+  assert!(spaces.contains(&0x000A));
+  assert!(spaces.contains(&0x00A0));
+  assert!(spaces.contains(&0x2028));
+  assert!(spaces.contains(&0x2029));
+  assert!(spaces.contains(&0x3000));
+  assert!(spaces.contains(&0xFEFF));
 }
