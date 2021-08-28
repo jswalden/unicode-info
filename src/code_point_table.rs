@@ -188,4 +188,6 @@ fn check_unicode_data() {
   let table = generate_code_point_table();
   assert_eq!(table.name('A' as u32), "LATIN CAPITAL LETTER A",
              "sanity check on ASCII capital A");
+  assert_eq!(table.full_name('💩' as u32), "U+1F4A9 PILE OF POO",
+             "sanity check on U+1F4A9 PILE OF POO");
 }
