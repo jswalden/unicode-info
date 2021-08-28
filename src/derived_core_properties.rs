@@ -16,12 +16,10 @@ impl Iterator for CodePointAndPropertyIter {
   type Item = CodePointAndProperty;
   
   fn next(&mut self) -> Option<Self::Item> {
-    match self.range.next() {
-      None => None,
-      Some(code_point) => {
-        Some(CodePointAndProperty { code_point, property: self.property })
-      }
-    }
+    self.range.next().map(|code_point| CodePointAndProperty {
+      code_point,
+      property: self.property
+    })
   }
 }
 

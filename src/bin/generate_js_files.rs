@@ -5,6 +5,7 @@ use std::result::Result;
 use unicode_info::code_point_table;
 
 enum Error {
+  #[allow(unused_variables)]
   Unknown,
 }
 
