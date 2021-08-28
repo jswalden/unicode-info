@@ -72,6 +72,59 @@ pub fn generate_non_bmp_info(code_point_table: &code_point_table::CodePointTable
 }
 
 #[test]
+fn non_bmp_lowercase_map() {
+    let table = code_point_table::generate_code_point_table();
+    let non_bmp_info = generate_non_bmp_info(&table);
+
+    assert_eq!(
+        table.full_name(0x10403),
+        "U+10403 DESERET CAPITAL LETTER LONG AH"
+    );
+    assert_eq!(
+        table.full_name(0x1042B),
+        "U+1042B DESERET SMALL LETTER LONG AH"
+    );
+    assert_eq!(non_bmp_info.lowercase_map.get(&0x10403), Some(&0x1042B));
+}
+
+#[cfg(test)]
+const DESERET_SMALL_LETTER_LONG_AH: u32 = 0x1042B;
+#[cfg(test)]
+const DESERET_CAPITAL_LETTER_LONG_AH: u32 = 0x10403;
+#[cfg(test)]
+const OLD_PERSIAN_SIGN_AURAMAZDAA: u32 = 0x103C8;
+
+#[test]
+fn check_constant_code_point_values() {
+    let table = code_point_table::generate_code_point_table();
+    assert_eq!(
+        table.full_name(DESERET_SMALL_LETTER_LONG_AH),
+        "U+1042B DESERET SMALL LETTER LONG AH"
+    );
+    assert_eq!(
+        table.full_name(DESERET_CAPITAL_LETTER_LONG_AH),
+        "U+10403 DESERET CAPITAL LETTER LONG AH"
+    );
+    assert_eq!(
+        table.name(OLD_PERSIAN_SIGN_AURAMAZDAA),
+        "OLD PERSIAN SIGN AURAMAZDAA"
+    );
+}
+
+#[test]
+fn non_bmp_uppercase_map() {
+    let table = code_point_table::generate_code_point_table();
+    let non_bmp_info = generate_non_bmp_info(&table);
+
+    assert_eq!(
+        non_bmp_info
+            .uppercase_map
+            .get(&DESERET_SMALL_LETTER_LONG_AH),
+        Some(&DESERET_CAPITAL_LETTER_LONG_AH)
+    );
+}
+
+#[test]
 fn non_bmp_space_set_is_empty() {
     let table = code_point_table::generate_code_point_table();
     let non_bmp_info = generate_non_bmp_info(&table);
@@ -85,7 +138,20 @@ fn non_bmp_space_set_is_empty() {
 fn non_bmp_identifier_start() {
     let table = code_point_table::generate_code_point_table();
 
-    const OLD_PERSIAN_SIGN_AURAMAZDAA: u32 = 0x103C8;
+    let non_bmp_info = generate_non_bmp_info(&table);
+
+    assert!(
+        non_bmp_info
+            .id_start_set
+            .contains(&OLD_PERSIAN_SIGN_AURAMAZDAA),
+        "OLD PERSIAN SIGN AURAMAZDAA is ID_Start"
+    );
+}
+
+#[test]
+fn non_bmp_identifier_continue() {
+    let table = code_point_table::generate_code_point_table();
+
     assert_eq!(
         table.name(OLD_PERSIAN_SIGN_AURAMAZDAA),
         "OLD PERSIAN SIGN AURAMAZDAA"
@@ -95,7 +161,7 @@ fn non_bmp_identifier_start() {
 
     assert!(
         non_bmp_info
-            .id_start_set
+            .id_continue_set
             .contains(&OLD_PERSIAN_SIGN_AURAMAZDAA),
         "OLD PERSIAN SIGN AURAMAZDAA is ID_Start"
     );
