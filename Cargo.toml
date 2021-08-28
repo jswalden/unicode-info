@@ -5,7 +5,7 @@ edition = "2018"
 
 [lib]
 name = "unicode_info"
-path = "src/api.rs"
+path = "src/lib.rs"
 
 [[bin]]
 name = "generate_js_files"
