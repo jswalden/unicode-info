@@ -1,10 +1,13 @@
-use std::collections::HashSet;
-
 use crate::code_point_table;
 use crate::constants::{LINE_TERMINATOR, WHITE_SPACE};
 
-pub type CodePointSet = HashSet<u32>;
+use crate::types::CodePointSet;
 
+/// Compute the set of all code points that match the `WhiteSpace` or
+/// `LineTerminator` productions.
+///
+/// Note that `WhiteSpace` includes all code points in the Unicode "Space
+/// Separator", i.e. "Zs", category.
 pub fn compute_white_space(code_point_table: &code_point_table::CodePointTable) -> CodePointSet {
     let mut space_set = CodePointSet::new();
     for (code, info) in code_point_table.iter() {
