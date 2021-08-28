@@ -1,3 +1,6 @@
+//! Common types used across this crate, with meaning not defined within a
+//! specific module.
+
 use std::collections::{HashMap, HashSet};
 
 /// A set of code point values.

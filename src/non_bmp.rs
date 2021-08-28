@@ -1,3 +1,6 @@
+//! Various information salient to handling non-BMP code points while ignoring
+//! all BMP code points.
+
 use crate::code_point_table;
 use crate::constants::MAX_BMP;
 use crate::derived_core_properties;

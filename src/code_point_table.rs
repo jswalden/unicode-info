@@ -1,3 +1,6 @@
+//! Parse the contents of `UnicodeData.txt`, the central code point registry
+//! file, into queryable and iterable form.
+
 static UNICODE_DATA_TXT: &str = include_str!("data/UnicodeData.txt");
 
 /// Information about a particular code point.

@@ -1,5 +1,12 @@
+//! Computation of the set of code points recognized as white space in JavaScript.
+
 use crate::code_point_table;
-use crate::constants::{LINE_TERMINATOR, WHITE_SPACE};
+#[cfg(test)]
+use crate::constants::{
+    CARRIAGE_RETURN, CHARACTER_TABULATION, IDEOGRAPHIC_SPACE, LINE_FEED, LINE_SEPARATOR,
+    LINE_TABULATION, NO_BREAK_SPACE, PARAGRAPH_SEPARATOR, ZERO_WIDTH_NO_BREAK_SPACE,
+};
+use crate::constants::{LINE_TERMINATOR, MAX_BMP, WHITE_SPACE};
 
 use crate::types::CodePointSet;
 
@@ -12,6 +19,10 @@ pub fn compute_white_space(code_point_table: &code_point_table::CodePointTable) 
     let mut space_set = CodePointSet::new();
     for (code, info) in code_point_table.iter() {
         if info.category == "Zs" || WHITE_SPACE.contains(code) || LINE_TERMINATOR.contains(code) {
+            assert!(
+                *code <= MAX_BMP,
+                "js::unicode::IsSpace(char32_t) depends upon non non-BMP spaces existing"
+            );
             space_set.insert(*code);
         }
     }
@@ -22,13 +33,13 @@ pub fn compute_white_space(code_point_table: &code_point_table::CodePointTable) 
 fn space_set_contains() {
     let table = code_point_table::generate_code_point_table();
     let spaces = compute_white_space(&table);
-    assert!(spaces.contains(&0x0009));
-    assert!(spaces.contains(&0x000B));
-    assert!(spaces.contains(&0x000D));
-    assert!(spaces.contains(&0x000A));
-    assert!(spaces.contains(&0x00A0));
-    assert!(spaces.contains(&0x2028));
-    assert!(spaces.contains(&0x2029));
-    assert!(spaces.contains(&0x3000));
-    assert!(spaces.contains(&0xFEFF));
+    assert!(spaces.contains(&CHARACTER_TABULATION));
+    assert!(spaces.contains(&LINE_TABULATION));
+    assert!(spaces.contains(&CARRIAGE_RETURN));
+    assert!(spaces.contains(&LINE_FEED));
+    assert!(spaces.contains(&NO_BREAK_SPACE));
+    assert!(spaces.contains(&LINE_SEPARATOR));
+    assert!(spaces.contains(&PARAGRAPH_SEPARATOR));
+    assert!(spaces.contains(&IDEOGRAPHIC_SPACE));
+    assert!(spaces.contains(&ZERO_WIDTH_NO_BREAK_SPACE));
 }

@@ -1,3 +1,6 @@
+//! Processes `DerivedCoreProperties.txt` to extract all ID_Start and
+//! ID_Continue code points.
+
 use std::collections::HashSet;
 
 static DERIVED_CORE_TXT: &str = include_str!("data/DerivedCoreProperties.txt");
