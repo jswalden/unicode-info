@@ -245,8 +245,6 @@ impl CodePointTable {
 }
 
 /// Generate a table of all code points, mapping code to characteristics.
-///
-///
 pub fn generate_code_point_table() -> CodePointTable {
     let mut code_point_map = CodePointMap::new();
 
