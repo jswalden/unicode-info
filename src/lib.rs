@@ -1,6 +1,7 @@
 //! A crate that parses, slices, and dices Unicode code point description files
 //! into convenient structured representations.
 
+pub mod case_folding;
 pub mod code_point_table;
 pub mod constants;
 pub mod derived_core_properties;
