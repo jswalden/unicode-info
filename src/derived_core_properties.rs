@@ -153,14 +153,17 @@ fn check_derived_core_properties() {
     let starts = dcp.id_start;
     let starts_count = starts.len();
 
-    assert!(!starts.contains(&('$' as u32)));
-    assert!(!starts.contains(&('_' as u32)));
+    const DOLLAR_SIGN: u32 = '$' as u32;
+    const LOW_LINE: u32 = '_' as u32;
+
+    assert!(!starts.contains(&DOLLAR_SIGN));
+    assert!(!starts.contains(&LOW_LINE));
 
     let continues = dcp.id_continue;
     let continues_count = continues.len();
 
-    assert!(!continues.contains(&('$' as u32)));
-    assert!(continues.contains(&('_' as u32)));
+    assert!(!continues.contains(&DOLLAR_SIGN));
+    assert!(continues.contains(&LOW_LINE));
 
     // These constants were derived not from messing around and finding out, but
     // from comments after respective sections in DerivedCoreProperties.txt.
