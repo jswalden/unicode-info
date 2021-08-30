@@ -38,6 +38,21 @@ const PUBLIC_DOMAIN: &str = r#"
  */
 "#;
 
+fn generate_regexp_character_class_escape_js() -> Result<(), Error> {
+    Ok(())
+}
+
+fn generate_string_code_point_upper_lower_mapping_js() -> Result<(), Error> {
+    Ok(())
+}
+
+fn generate_string_upper_lower_mapping_js() -> Result<(), Error> {
+    Ok(())
+}
+
+fn generate_string_space_trim_js() -> Result<(), Error> {
+    Ok(())
+}
 fn generate_unicode_ignorecase_js(
     all_codes_with_equivalents: &Vec<case_folding::CodeAndEquivalents>,
     table: &code_point_table::CodePointTable,
@@ -96,6 +111,10 @@ fn main() -> Result<(), Error> {
     let table = code_point_table::generate_code_point_table();
     let case_folding = case_folding::process_case_folding();
 
+    generate_regexp_character_class_escape_js()?;
+    generate_string_space_trim_js()?;
+    generate_string_code_point_upper_lower_mapping_js()?;
+    generate_string_upper_lower_mapping_js()?;
     generate_unicode_ignorecase_js(&case_folding.all_codes_with_equivalents, &table)?;
 
     Ok(())
