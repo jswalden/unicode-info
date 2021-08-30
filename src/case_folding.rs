@@ -66,7 +66,7 @@ pub type CodeAndEquivalents = (u32, Vec<u32>);
 
 /// Data resulting from processing `CaseFolding.txt`.
 pub struct CaseFoldingData {
-    all_codes_with_equivalents: Vec<CodeAndEquivalents>,
+    pub all_codes_with_equivalents: Vec<CodeAndEquivalents>,
 }
 
 type SortedMap<K, V> = std::collections::BTreeMap<K, V>;
