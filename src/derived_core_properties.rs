@@ -146,6 +146,23 @@ pub fn process_derived_core_properties() -> DerivedCorePropertyData {
     }
 }
 
+/// Return the Unicode version of `DerivedCoreProperties.txt`.
+pub fn unicode_version() -> &'static str {
+    // The first line looks like "# DerivedCoreProperties-13.0.0.txt".
+    let first_line = DERIVED_CORE_TXT
+        .lines()
+        .nth(0)
+        .expect("always have a first line");
+
+    const PREFIX: &str = "# DerivedCoreProperties-";
+    assert!(first_line.starts_with(PREFIX));
+
+    const SUFFIX: &str = ".txt";
+    assert!(first_line.ends_with(SUFFIX));
+
+    &first_line[PREFIX.len()..first_line.len() - SUFFIX.len()]
+}
+
 #[test]
 fn check_derived_core_properties() {
     let dcp = process_derived_core_properties();
