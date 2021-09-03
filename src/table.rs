@@ -19,11 +19,11 @@ fn get_size(data: &Vec<u32>) -> usize {
     assert!(max_data <= usize::wrapping_shl(1usize, 32) - 1);
 
     data.len()
-        * (if max_data <= u8::MIN as usize {
+        * (if max_data <= u8::MAX as usize {
             1
-        } else if max_data <= u16::MIN as usize {
+        } else if max_data <= u16::MAX as usize {
             2
-        } else if max_data <= u32::MIN as usize {
+        } else if max_data <= u32::MAX as usize {
             4
         } else {
             panic!(
