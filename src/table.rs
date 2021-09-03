@@ -26,7 +26,10 @@ fn get_size(data: &Vec<u32>) -> usize {
         } else if max_data <= u32::MIN as usize {
             4
         } else {
-            panic!("unexpectedly large maximum");
+            panic!(
+                "unexpectedly large maximum: {max_data}",
+                max_data = max_data
+            );
         })
 }
 
