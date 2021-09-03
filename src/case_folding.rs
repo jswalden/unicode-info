@@ -191,7 +191,10 @@ pub fn process_case_folding() -> CaseFoldingData {
         all_codes_with_equivalents.push((*code, equivs));
     }
 
-    let mut bmp_folding_table: Vec<Delta> = vec![];
+    // A list of unique deltas from a code point to its folded code point.
+    // This list starts with `Delta(0)` because entries in `bmp_folding_index`
+    // are `0` unless `CaseFolding.txt` entries modify that.
+    let mut bmp_folding_table: Vec<Delta> = vec![Delta(0)];
 
     // A hash mapping a `Delta` to its unique index in `bmp_folding_table`.
     let mut bmp_folding_cache = HashMap::<Delta, u32>::new();
@@ -199,6 +202,11 @@ pub fn process_case_folding() -> CaseFoldingData {
     // `bmp_folding_index[c]` is the index into `bmp_folding_table` of the
     // `delta` to be added (with wrapping) to code point `c` to compute its
     // folded code point.
+    //
+    // Note that because indexes are initially `0`, every code point starts out
+    // as mapping to `bmp_folding_table[0]`, i.e. `Delta(0)`, i.e. folding to
+    // itself.  The loop below overwrites only the indexes with non-identity
+    // folds.
     let mut bmp_folding_index = vec![0u32; (MAX_BMP + 1) as usize];
 
     for (code, mapping) in folding_map.iter().filter(|(code, _)| **code <= MAX_BMP) {
