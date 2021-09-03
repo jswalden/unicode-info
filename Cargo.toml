@@ -12,5 +12,6 @@ name = "generate_js_files"
 path = "src/bin/generate_js_files.rs"
 
 [dependencies]
+proc-macro2 = "1.0"
 quote = "1.0"
 syn = { version = "1.0", features = ["full", "fold"] }

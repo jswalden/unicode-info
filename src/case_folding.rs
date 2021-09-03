@@ -1,7 +1,10 @@
 //! Parse the contents of `CaseFolding.txt`, the central code point registry
 //! file.
 
+extern crate proc_macro2;
+
 use crate::constants::MAX_BMP;
+use quote::quote;
 use std::collections::HashMap;
 use std::convert::TryFrom;
 
@@ -64,7 +67,17 @@ pub type CodeWithEquivalents = (u32, Vec<u32>);
 /// `delta` in the `code + delta == mapping` identity used to convert from a
 /// BMP code point to its folded code point.
 #[derive(PartialEq, Eq, Hash, Copy, Clone)]
-pub struct Delta(u16);
+pub struct Delta(pub u16);
+
+impl quote::ToTokens for Delta {
+    fn to_tokens(&self, tokens: &mut proc_macro2::TokenStream) {
+        let num = self.0;
+        let code = quote! {
+            ::unicode_info::case_folding::Delta(#num)
+        };
+        tokens.extend(code);
+    }
+}
 
 /// Data resulting from processing `CaseFolding.txt`.
 pub struct CaseFoldingData {
