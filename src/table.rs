@@ -5,9 +5,9 @@
 /// From a list `t` of integers, many of which will be equal in value, compute
 /// two separate lists `t1` and `t2`
 pub struct TableSplit {
-    t1: Vec<u32>,
-    t2: Vec<u32>,
-    shift: u32,
+    pub t1: Vec<u32>,
+    pub t2: Vec<u32>,
+    pub shift: u32,
 }
 
 /// Compute the size of the smallest integer type that can represent every value
