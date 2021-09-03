@@ -79,7 +79,7 @@ pub struct CaseFoldingData {
     ///
     /// this vector would be
     ///
-    /// ```no_run
+    /// ```text
     /// [(A, [B, C]), (B, [A, C]), (C, [A, B])]
     /// ```
     ///

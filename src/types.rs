@@ -11,7 +11,7 @@ pub type CodePointSet = HashSet<u32>;
 pub type CaseMap = HashMap<u32, u32>;
 
 /// An enum denoting a Rust numeric type.
-#[derive(Copy, Clone)]
+#[derive(Copy, Clone, PartialEq, Eq, Debug)]
 pub enum NumericType {
     U8,
     U16,
