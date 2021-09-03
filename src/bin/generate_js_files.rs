@@ -55,7 +55,7 @@ fn generate_string_space_trim_js() -> io::Result<()> {
 }
 fn generate_unicode_ignorecase_js(
     version: &str,
-    all_codes_with_equivalents: &Vec<case_folding::CodeAndEquivalents>,
+    all_codes_with_equivalents: &Vec<case_folding::CodeWithEquivalents>,
     table: &code_point_table::CodePointTable,
 ) -> io::Result<()> {
     fn to_hex(code: &u32) -> String {

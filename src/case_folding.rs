@@ -2,6 +2,8 @@
 //! file.
 
 use crate::constants::MAX_BMP;
+use std::collections::HashMap;
+use std::convert::TryFrom;
 
 static CASE_FOLDING_TXT: &str = include_str!("data/CaseFolding.txt");
 
@@ -17,13 +19,8 @@ impl CaseFoldingParse {
     }
 }
 
-struct CaseFoldingInfo {
-    code: u32,
-    mapping: u32,
-}
-
 impl Iterator for CaseFoldingParse {
-    type Item = CaseFoldingInfo;
+    type Item = (u32, u32);
 
     fn next(&mut self) -> Option<Self::Item> {
         loop {
@@ -49,12 +46,12 @@ impl Iterator for CaseFoldingParse {
             if ["C", "S"].contains(&row[1]) {
                 let code = u32::from_str_radix(row[0], 16).expect("hex code");
                 let mapping = u32::from_str_radix(row[2], 16).expect("hex mapping");
-                return Some(CaseFoldingInfo { code, mapping });
+                return Some((code, mapping));
             }
 
             assert!(
                 ["F", "T"].contains(&row[1]),
-                "should expect to see only (C)ommon, (S)imple, (F)ull, and (T)urkish foldings"
+                "should see (C)ommon, (S)imple, (F)ull, and (T)urkish foldings"
             );
         }
     }
@@ -62,11 +59,49 @@ impl Iterator for CaseFoldingParse {
 
 /// A type storing a code point and all (non-identical) code points that are
 /// equivalent to it after case folding.
-pub type CodeAndEquivalents = (u32, Vec<u32>);
+pub type CodeWithEquivalents = (u32, Vec<u32>);
+
+/// `delta` in the `code + delta == mapping` identity used to convert from a
+/// BMP code point to its folded code point.
+#[derive(PartialEq, Eq, Hash, Copy, Clone)]
+pub struct Delta(u16);
 
 /// Data resulting from processing `CaseFolding.txt`.
 pub struct CaseFoldingData {
-    pub all_codes_with_equivalents: Vec<CodeAndEquivalents>,
+    /// A list of `(code, [equivalents])` for every code that participates in
+    /// non-identity case folding, ordered by code.  For example, if we had
+    /// these mappings:
+    ///
+    /// ```text
+    /// A -> C
+    /// B -> C
+    /// ```
+    ///
+    /// this vector would be
+    ///
+    /// ```no_run
+    /// [(A, [B, C]), (B, [A, C]), (C, [A, B])]
+    /// ```
+    ///
+    /// Arrays of equivalents are in sorted order.
+    ///
+    /// The included codes span the full BMP and non-BMP gamut.
+    pub all_codes_with_equivalents: Vec<CodeWithEquivalents>,
+
+    /// A list of unique `Delta` values.
+    pub bmp_folding_table: Vec<Delta>,
+
+    /// A vector, each element of which is the index in
+    /// [`CaseFoldingData::bmp_folding_table`](CaseFoldingData::bmp_folding_table)
+    /// of that code point's `Delta`.  For example, because `CaseFolding.txt`
+    /// contains
+    ///
+    /// ```text
+    /// U+0041 LATIN CAPITAL LETTER A -> U+0061 LATIN SMALL LETTER A
+    /// ```
+    ///
+    /// we will have `bmp_folding_table[bmp_folding_index[0x0041]] == Delta(0x0061 - 0x0041)`.
+    pub bmp_folding_index: Vec<u32>,
 }
 
 type SortedMap<K, V> = std::collections::BTreeMap<K, V>;
@@ -76,9 +111,13 @@ type SortedSet<T> = std::collections::BTreeSet<T>;
 ///
 /// Case folding is the process of converting code point sequences to a
 /// canonical, folded form.  JavaScript depends upon the case folding process to
-/// implement Unicode case-insensitive `/foo/iu` regular expressions.
-/// (`Intl.Collator` also depends upon case folding, but such dependence is
-/// internal to ICU and therefore doesn't have to be addressed here.)
+/// implement 1) case-insensitive comparisons for `/foo/iu` regular expressions
+/// and 2) aspects of `Intl.Collator`.  (v8 handles the former for non-BMP code
+/// points, and ICU handles the latter.  We record case folding information for
+/// both BMP and non-BMP code points in
+/// [`CaseFoldingData::all_codes_with_equivalents`](CaseFoldingData::all_codes_with_equivalents),
+/// for testing purposes, but our generated folding tables only have to handle
+/// BMP code points.)
 ///
 /// Conceptually you can think of case folding, applied to the ASCII subset of
 /// strings, as mapping them to lowercase.  Across the entirety of Unicode, for
@@ -99,18 +138,18 @@ pub fn process_case_folding() -> CaseFoldingData {
     let mut folding_map = SortedMap::<u32, u32>::new();
 
     // The inverse of `folding_map`: a map of folded -> vec![one or more codes].
-    // (An example of a code point folded to by multiple code points is
-    // U+03C3 GREEK SMALL LETTER SIGMA: both U+03A3 GREEK CAPITAL LETTER SIGMA
-    // and U+03C2 GREEK SMALL LETTER FINAL SIGMA fold to it.)
+    // (An example of a code point folded to by multiple code points: is
+    // both U+03A3 GREEK CAPITAL LETTER SIGMA and U+03C2 GREEK SMALL LETTER
+    // FINAL SIGMA fold to U+03C3 GREEK SMALL LETTER SIGMA.)
     let mut reverse_folding_map = SortedMap::<u32, Vec<u32>>::new();
 
     // Compute both of the above maps from the full set of one-way mappings.
-    for CaseFoldingInfo { code, mapping } in CaseFoldingParse::simple_and_common_foldings() {
+    for (code, mapping) in CaseFoldingParse::simple_and_common_foldings() {
         folding_map.insert(code, mapping);
 
         reverse_folding_map
             .entry(mapping)
-            .or_insert(vec![])
+            .or_insert_with(|| vec![])
             .push(code);
     }
 
@@ -120,7 +159,13 @@ pub fn process_case_folding() -> CaseFoldingData {
     all_folding_codes.extend(folding_map.keys());
     all_folding_codes.extend(reverse_folding_map.keys());
 
-    let mut all_codes_with_equivalents = Vec::<CodeAndEquivalents>::new();
+    // A list of `(code, [equivalents])` for every code that participates in
+    // non-identity case folding, ordered by code.  (Thus if a code has two
+    // equivalents, each of _those_ codes will have an entry whose equivalents
+    // will be the other equivalent and this code.)
+    //
+    // By construction each `[equivalents]` is in sorted order.
+    let mut all_codes_with_equivalents = Vec::<CodeWithEquivalents>::new();
 
     // Build a list of every "interesting" code and all the codes that map to
     // it.
@@ -146,10 +191,43 @@ pub fn process_case_folding() -> CaseFoldingData {
         all_codes_with_equivalents.push((*code, equivs));
     }
 
-    for _ in all_folding_codes.iter().filter(|code| **code <= MAX_BMP) {}
+    let mut bmp_folding_table: Vec<Delta> = vec![];
+
+    // A hash mapping a `Delta` to its unique index in `bmp_folding_table`.
+    let mut bmp_folding_cache = HashMap::<Delta, u32>::new();
+
+    // `bmp_folding_index[c]` is the index into `bmp_folding_table` of the
+    // `delta` to be added (with wrapping) to code point `c` to compute its
+    // folded code point.
+    let mut bmp_folding_index = vec![0u32; (MAX_BMP + 1) as usize];
+
+    for (code, mapping) in folding_map.iter().filter(|(code, _)| **code <= MAX_BMP) {
+        let code = u16::try_from(*code).expect("valid because BMP");
+        let mapping = u16::try_from(*mapping).expect("valid because BMP");
+
+        // BMP case folding `code -> mapping` is implemented as successive table
+        // lookups, that together produce `delta` from the identity
+        // `code + delta == mapping`.
+        let delta = Delta(u16::wrapping_sub(mapping, code));
+
+        let index = match bmp_folding_cache.get(&delta) {
+            None => {
+                assert!(!bmp_folding_table.contains(&delta));
+                let index = bmp_folding_table.len() as u32;
+                bmp_folding_cache.insert(delta, index);
+                bmp_folding_table.push(delta);
+                index
+            }
+            Some(index) => *index,
+        };
+
+        bmp_folding_index[code as usize] = index;
+    }
 
     CaseFoldingData {
         all_codes_with_equivalents,
+        bmp_folding_table,
+        bmp_folding_index,
     }
 }
 
@@ -157,8 +235,16 @@ pub fn process_case_folding() -> CaseFoldingData {
 fn check_case_folding() {
     let CaseFoldingData {
         all_codes_with_equivalents,
+        bmp_folding_index,
+        bmp_folding_table,
     } = process_case_folding();
 
     assert!(all_codes_with_equivalents.contains(&(0x0399, vec![0x03B9, 0x0345, 0x1FBE])),
             "GREEK CAPITAL LETTER IOTA, GREEK SMALL LETTER IOTA, COMBINING GREEK YPOGEGRAMMENI (GREEK NON-SPACING IOTA BELOW), GREEK PROSGEGRAMMENI");
+
+    for (code, table_index) in bmp_folding_index.iter().enumerate() {
+        let _computed_delta = bmp_folding_table[*table_index as usize];
+
+        let _idx = code;
+    }
 }
