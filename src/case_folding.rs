@@ -66,7 +66,7 @@ pub type CodeWithEquivalents = (u32, Vec<u32>);
 
 /// `delta` in the `code + delta == mapping` identity used to convert from a
 /// BMP code point to its folded code point.
-#[derive(PartialEq, Eq, Hash, Copy, Clone)]
+#[derive(PartialEq, Eq, Hash, Copy, Clone, Debug)]
 pub struct Delta(pub u16);
 
 impl quote::ToTokens for Delta {
@@ -113,7 +113,7 @@ pub struct CaseFoldingData {
     /// U+0041 LATIN CAPITAL LETTER A -> U+0061 LATIN SMALL LETTER A
     /// ```
     ///
-    /// we will have `bmp_folding_table[bmp_folding_index[0x0041]] == Delta(0x0061 - 0x0041)`.
+    /// we will have `bmp_folding_table[bmp_folding_index[0x0041] as usize] == Delta(0x0061 - 0x0041)`.
     pub bmp_folding_index: Vec<u32>,
 }
 
@@ -262,6 +262,12 @@ fn check_case_folding() {
 
     assert!(all_codes_with_equivalents.contains(&(0x0399, vec![0x03B9, 0x0345, 0x1FBE])),
             "GREEK CAPITAL LETTER IOTA, GREEK SMALL LETTER IOTA, COMBINING GREEK YPOGEGRAMMENI (GREEK NON-SPACING IOTA BELOW), GREEK PROSGEGRAMMENI");
+
+    assert_eq!(
+        bmp_folding_table[bmp_folding_index[0x0041] as usize],
+        Delta(0x0061 - 0x0041),
+        "verify 'A' -> 'a' correspondence noted in `CaseFoldingData` docs"
+    );
 
     for (code, table_index) in bmp_folding_index.iter().enumerate() {
         let _computed_delta = bmp_folding_table[*table_index as usize];
