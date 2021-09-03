@@ -2,74 +2,73 @@
 //! sequence by the upper bits of the index, then by the lower bits of the
 //! index.
 
+use crate::types::NumericType;
+
 /// From a list `t` of integers, many of which will be equal in value, compute
 /// two separate lists `t1` and `t2`
 pub struct TableSplit {
     pub t1: Vec<u32>,
+    pub t1_elem_type: NumericType,
     pub t2: Vec<u32>,
+    pub t2_elem_type: NumericType,
     pub shift: u32,
 }
 
-/// Compute the size of the smallest integer type that can represent every value
+/// Compute the type of the smallest integer type that can represent every value
 /// in `data`.
-fn get_size(data: &Vec<u32>) -> usize {
+fn get_element_type(data: &Vec<u32>) -> NumericType {
     assert!(data.len() > 0);
 
     let max_data = data.iter().fold(0, |max, v| std::cmp::max(max, *v)) as usize;
     assert!(max_data <= usize::wrapping_shl(1usize, 32) - 1);
 
-    data.len()
-        * (if max_data <= u8::MAX as usize {
-            1
-        } else if max_data <= u16::MAX as usize {
-            2
-        } else if max_data <= u32::MAX as usize {
-            4
-        } else {
-            panic!(
-                "unexpectedly large maximum: {max_data}",
-                max_data = max_data
-            );
-        })
+    if max_data <= u8::MAX as usize {
+        NumericType::U8
+    } else if max_data <= u16::MAX as usize {
+        NumericType::U16
+    } else if max_data <= u32::MAX as usize {
+        NumericType::U32
+    } else {
+        panic!(
+            "unexpectedly large maximum: {max_data}",
+            max_data = max_data
+        );
+    }
+}
+
+fn get_size(t: NumericType) -> usize {
+    match t {
+        NumericType::U8 => 1,
+        NumericType::U16 => 2,
+        NumericType::U32 => 4,
+    }
+}
+
+/// Compute the size of the smallest integer type in bytes that can represent
+/// every value in `data`.
+fn get_element_size(data: &Vec<u32>) -> usize {
+    get_size(get_element_type(&data))
 }
 
 #[test]
-fn test_get_size() {
-    let a1 = vec![254u32];
-    assert_eq!(get_size(&a1), 1, "1, max 254");
+fn test_get_element_type() {
+    let a = vec![254u32, 0, 0];
+    assert_eq!(get_element_type(&a), NumericType::U8);
 
-    let a3 = vec![254u32, 0, 0];
-    assert_eq!(get_size(&a3), 3, "3, max 254");
+    let b = vec![255u32, 0, 0];
+    assert_eq!(get_element_type(&b), NumericType::U8);
 
-    let b1 = vec![255u32];
-    assert_eq!(get_size(&b1), 1, "1, max 255");
+    let c = vec![256u32, 0, 0];
+    assert_eq!(get_element_type(&c), NumericType::U16);
 
-    let b3 = vec![255u32, 0, 0];
-    assert_eq!(get_size(&b3), 3, "3, max 255");
+    let d = vec![65534u32, 0, 0];
+    assert_eq!(get_element_type(&d), NumericType::U16);
 
-    let c1 = vec![256u32];
-    assert_eq!(get_size(&c1), 2, "1, max 256");
+    let e = vec![65535u32, 0, 0];
+    assert_eq!(get_element_type(&e), NumericType::U16);
 
-    let c3 = vec![256u32, 0, 0];
-    assert_eq!(get_size(&c3), 6, "3, max 256");
-
-    let d1 = vec![65534u32];
-    assert_eq!(get_size(&d1), 2, "1, max 65534");
-
-    let d3 = vec![65534u32, 0, 0];
-    assert_eq!(get_size(&d3), 2, "3, max 65534");
-
-    let e1 = vec![65535u32];
-    assert_eq!(get_size(&e1), 2, "1, max 65535");
-
-    let e3 = vec![65535u32, 0, 0];
-    assert_eq!(get_size(&e3), 6, "1, max 65535");
-
-    let f1 = vec![65536u32];
-    assert_eq!(get_size(&f1), 4, "1, max 65536");
-
-    let f3 = vec![65536u32, 0, 0];
-    assert_eq!(get_size(&f3), 12, "1, max 65536");
+    let f = vec![65536u32, 0, 0];
+    assert_eq!(get_element_type(&f), NumericType::U32);
 }
 
 /// Print diagnostic information about the optimal table splitting.
@@ -83,7 +82,7 @@ fn dump_best_split(s: &TableSplit, original_table: &Vec<u32>, bytes: usize) {
     );
     eprintln!(
         "Size of original table: {original_size} bytes",
-        original_size = get_size(original_table),
+        original_size = get_element_size(&original_table) * original_table.len(),
     );
 }
 
@@ -128,20 +127,21 @@ pub fn split_table(t: &Vec<u32>) -> TableSplit {
         "assumed below that t2's length won't exceed u32"
     );
 
-    let max_shift = compute_maximum_shift(&t);
-
-    // The current best splitting discovered (i.e. the null split).
-    let mut best = TableSplit {
-        t1: vec![0],
-        t2: t.clone(),
-        shift: max_shift + 1,
-    };
-
     // The memory consumed by the current best splitting.  (Initialized to all
     // available memory so that the first iteration of the loop below will
     // overwrite it.)
     let mut best_bytes = usize::MAX;
 
+    // The current best splitting -- immediately overwritten.
+    let mut best = TableSplit {
+        t1: vec![],
+        t1_elem_type: NumericType::U8,
+        t2: vec![],
+        t2_elem_type: NumericType::U8,
+        shift: 0,
+    };
+
+    let max_shift = compute_maximum_shift(&t);
     for candidate_shift in 0..=max_shift {
         let mut t1 = vec![];
         let mut t2 = vec![];
@@ -164,11 +164,16 @@ pub fn split_table(t: &Vec<u32>) -> TableSplit {
             t1.push(index >> candidate_shift);
         }
 
-        let bytes = get_size(&t1) + get_size(&t2);
+        let t1_elem_type = get_element_type(&t1);
+        let t2_elem_type = get_element_type(&t2);
+
+        let bytes = get_size(t1_elem_type) * t1.len() + get_size(t2_elem_type) * t2.len();
         if bytes < best_bytes {
             best = TableSplit {
                 t1,
+                t1_elem_type,
                 t2,
+                t2_elem_type,
                 shift: candidate_shift,
             };
             best_bytes = bytes;
