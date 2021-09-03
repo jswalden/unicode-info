@@ -119,7 +119,7 @@ fn test_maximum_shift() {
 ///
 /// where `shift` is chosen to minimize the memory consumed by `t1` and `t2`,
 /// assuming each is represented using the smallest possible integer type.
-pub fn split_table(t: &mut Vec<u32>) -> TableSplit {
+pub fn split_table(t: &Vec<u32>) -> TableSplit {
     assert!(
         t.len() <= u32::MAX as usize,
         "assumed below that t2's length won't exceed u32"
