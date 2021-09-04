@@ -18,6 +18,10 @@ pub const LINE_FEED: u32 = 0x000A;
 pub const SPACE: u32 = 0x0020;
 /// Code for U+00A0 NO-BREAK SPACE.
 pub const NO_BREAK_SPACE: u32 = 0x00A0;
+/// Code for U+200C ZERO WIDTH NON-JOINER.
+pub const ZERO_WIDTH_NON_JOINER: u32 = 0x200C;
+/// Code for U+200D ZERO WIDTH JOINER.
+pub const ZERO_WIDTH_JOINER: u32 = 0x200D;
 /// Code for U+2028 LINE SEPARATOR.
 pub const LINE_SEPARATOR: u32 = 0x2028;
 /// Code for U+2029 PARAGRAPH SEPARATOR.
@@ -48,3 +52,9 @@ pub const LINE_TERMINATOR: [u32; 4] = [
     LINE_SEPARATOR,
     PARAGRAPH_SEPARATOR,
 ];
+
+/// Additional code points included in the `IdentifierPart` production that are
+/// not code points with the Unicode property "ID_Continue".
+///
+/// See <https://tc39.es/ecma262/#prod-IdentifierPart> for details.
+pub const COMPATIBILITY_IDENTIFIER_PART: [u32; 2] = [ZERO_WIDTH_NON_JOINER, ZERO_WIDTH_JOINER];

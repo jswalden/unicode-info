@@ -9,6 +9,8 @@ use crate::types::{CaseMap, CodePointSet};
 use derived_core_properties::DerivedCorePropertyData;
 
 /// Information about various categories and mappings of non-BMP code point.
+///
+/// See [`crate::bmp`](crate::bmp) for BMP code point information.
 pub struct NonBMPInfo {
     /// A mapping of every non-BMP code point to its lowercase form, *when the
     /// lowercase form is different*.  (Identity mappings are not included.)
