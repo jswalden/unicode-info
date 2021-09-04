@@ -137,7 +137,6 @@ fn test_maximum_shift() {
 /// Or to say it in pseudocode,
 ///
 /// ```text
-/// // assuming `i` is a valid index into table `t`
 /// let mask = (1 << N) - 1;
 /// for i in 0..t.len() {
 ///     let index1_entry = index1[i >> N];
