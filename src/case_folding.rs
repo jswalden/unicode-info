@@ -104,9 +104,8 @@ pub struct CaseFoldingData {
     /// A list of unique `Delta` values.
     pub bmp_folding_table: Vec<Delta>,
 
-    /// A vector, each element of which is the index in
-    /// [`CaseFoldingData::bmp_folding_table`](CaseFoldingData::bmp_folding_table)
-    /// of that code point's `Delta`.  For example, because `CaseFolding.txt`
+    /// A vector, each element of which is the index in `bmp_folding_table` of
+    /// // that code point's `Delta`.  For example, because `CaseFolding.txt`
     /// contains
     ///
     /// ```text
@@ -209,9 +208,6 @@ pub fn process_case_folding() -> CaseFoldingData {
     // are `0` unless `CaseFolding.txt` entries modify that.
     let mut bmp_folding_table: Vec<Delta> = vec![Delta(0)];
 
-    // A hash mapping a `Delta` to its unique index in `bmp_folding_table`.
-    let mut bmp_folding_cache = HashMap::<Delta, u32>::new();
-
     // `bmp_folding_index[c]` is the index into `bmp_folding_table` of the
     // `delta` to be added (with wrapping) to code point `c` to compute its
     // folded code point.
@@ -221,6 +217,9 @@ pub fn process_case_folding() -> CaseFoldingData {
     // itself.  The loop below overwrites only the indexes with non-identity
     // folds.
     let mut bmp_folding_index = vec![0u32; (MAX_BMP + 1) as usize];
+
+    // A hash mapping a `Delta` to its unique index in `bmp_folding_table`.
+    let mut bmp_folding_cache = HashMap::<Delta, u32>::new();
 
     for (code, mapping) in folding_map.iter().filter(|(code, _)| **code <= MAX_BMP) {
         let code = u16::try_from(*code).expect("valid because BMP");

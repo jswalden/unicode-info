@@ -93,9 +93,8 @@ pub struct BMPInfo {
     /// A list of unique `CharacterInfo` values.
     pub table: Vec<CharacterInfo>,
 
-    /// A vector, each element of which is the index in
-    /// [`CaseFoldingData::bmp_folding_table`](CaseFoldingData::bmp_folding_table)
-    /// of that code point's `Delta`.  For example, because `CaseFolding.txt`
+    /// A vector, each element of which is the index in `bmp_folding_table` of
+    /// that code point's `Delta`.  For example, because `CaseFolding.txt`
     /// contains
     ///
     /// ```text
