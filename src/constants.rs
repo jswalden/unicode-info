@@ -16,6 +16,10 @@ pub const CARRIAGE_RETURN: u32 = 0x000D;
 pub const LINE_FEED: u32 = 0x000A;
 /// Code for U+0020 SPACE.
 pub const SPACE: u32 = 0x0020;
+/// Code for U+0024 DOLLAR SIGN.
+pub const DOLLAR_SIGN: u32 = 0x0024;
+/// Code for U+005F LOW LINE.
+pub const LOW_LINE: u32 = 0x005F;
 /// Code for U+00A0 NO-BREAK SPACE.
 pub const NO_BREAK_SPACE: u32 = 0x00A0;
 /// Code for U+200C ZERO WIDTH NON-JOINER.
