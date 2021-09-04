@@ -5,39 +5,76 @@ static UNICODE_DATA_TXT: &str = include_str!("data/UnicodeData.txt");
 
 /// Information about a particular code point.
 #[derive(Copy, Clone, Debug)]
-pub struct CodePointInfo {
+struct CodePointInfo {
     /// The name of the code point, e.g. CRAB or PILE OF POO or
     /// LATIN CAPITAL LETTER A.
-    pub name: &'static str,
+    name: &'static str,
 
     /// The Unicode category of the code point, in its abbreviated form: for
     /// example, "Zs" rather than "Space_Separator".
-    pub category: &'static str,
+    category: &'static str,
 
     /// The alias of the code point, if any.
     ///
     /// For example, U+FEFF ZERO WIDTH NO-BREAK SPACE has BYTE ORDER MARK as its
     /// alias.
-    pub alias: &'static str,
+    alias: &'static str,
 
-    /// The code for the uppercase form of the associated code point.
-    ///
-    /// If the code point doesn't have an uppercase form, this will be the code
-    /// point itself.
-    pub uppercase: u32,
+    /// The code for the uppercase form of the associated code point, or empty
+    /// if it's the same as the associated code point.
+    upper: &'static str,
 
-    /// The code for the lowercase form of the associated code point.
-    ///
-    /// If the code point doesn't have a lowercase form, this will be the code
-    /// point itself.
-    pub lowercase: u32,
+    /// The code for the lowercase form of the associated code point, or empty
+    /// if it's the same as the associated code point.
+    lower: &'static str,
 }
 
 /// Code point info, including its code.
 #[derive(Copy, Clone, Debug)]
-struct CodePoint {
-    code: u32,
+pub struct CodePoint {
+    /// The code point's code.
+    pub code: u32,
+
+    // Info about the code point.
     info: CodePointInfo,
+}
+
+impl CodePoint {
+    pub fn name(&self) -> &'static str {
+        self.info.name
+    }
+
+    pub fn category(&self) -> &'static str {
+        self.info.category
+    }
+
+    pub fn alias(&self) -> &'static str {
+        self.info.alias
+    }
+
+    /// The code for the uppercase form of this code point.
+    ///
+    /// If this code point doesn't have an uppercase form, this will be the code
+    /// point itself.
+    pub fn uppercase(&self) -> u32 {
+        if self.info.upper.is_empty() {
+            self.code
+        } else {
+            u32::from_str_radix(self.info.upper, 16).expect("bad hex code")
+        }
+    }
+
+    /// The code for the lowercase form of this code point.
+    ///
+    /// If this code point doesn't have a lowercase form, this will be the code
+    /// point itself.
+    pub fn lowercase(&self) -> u32 {
+        if self.info.lower.is_empty() {
+            self.code
+        } else {
+            u32::from_str_radix(self.info.lower, 16).expect("bad hex code")
+        }
+    }
 }
 
 /// Code points within a range, that share all aspects except for code.
@@ -112,26 +149,18 @@ impl Iterator for UnicodeDataParse {
                     u32::from_str_radix(fields[0], 16).expect("hex code")
                 }
 
-                fn decompose_fields(code: u32, fields: &Vec<&'static str>) -> CodePointInfo {
-                    fn to_case(case_field: &str, code: u32) -> u32 {
-                        if case_field.is_empty() {
-                            code
-                        } else {
-                            u32::from_str_radix(case_field, 16).expect("bad hex code")
-                        }
-                    }
-
+                fn decompose_fields(fields: &Vec<&'static str>) -> CodePointInfo {
                     CodePointInfo {
                         name: fields[1],
                         category: fields[2],
                         alias: fields[10],
-                        uppercase: to_case(fields[12], code),
-                        lowercase: to_case(fields[13], code),
+                        upper: fields[12],
+                        lower: fields[13],
                     }
                 }
 
                 let code = get_code(&fields);
-                let mut info = decompose_fields(code, &fields);
+                let mut info = decompose_fields(&fields);
 
                 // A consecutive code point pair may represent a range of code
                 // points, for example
@@ -169,7 +198,7 @@ impl Iterator for UnicodeDataParse {
     }
 }
 
-type CodePointMap = std::collections::HashMap<u32, CodePointInfo>;
+type CodePointMap = std::collections::BTreeMap<u32, CodePointInfo>;
 
 /// A table containing information on every code point.
 ///
@@ -184,14 +213,20 @@ pub struct CodePointTable {
 
 /// An iterator over the code points in a `CodePointTable`.
 pub struct CodePointTableIter<'a> {
-    iter: std::collections::hash_map::Iter<'a, u32, CodePointInfo>,
+    iter: std::collections::btree_map::Iter<'a, u32, CodePointInfo>,
 }
 
-impl<'a> Iterator for CodePointTableIter<'a> {
-    type Item = (&'a u32, &'a CodePointInfo);
+impl Iterator for CodePointTableIter<'_> {
+    type Item = CodePoint;
 
     fn next(&mut self) -> Option<Self::Item> {
-        self.iter.next()
+        match self.iter.next() {
+            None => None,
+            Some((code, info)) => Some(CodePoint {
+                code: *code,
+                info: *info,
+            }),
+        }
     }
 }
 
@@ -236,7 +271,8 @@ impl CodePointTable {
         format!("U+{code:04X} {name}", code = code, name = self.name(code))
     }
 
-    /// Return an iterator over all code points and their info in this table.
+    /// Return an iterator (in sorted order) over all code points and their info
+    /// in this table.
     pub fn iter(&self) -> CodePointTableIter {
         CodePointTableIter {
             iter: self.map.iter(),

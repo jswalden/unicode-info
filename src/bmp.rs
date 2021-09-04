@@ -1,7 +1,6 @@
 //! Various information salient to handling _only_ BMP code points.
 
 use crate::code_point_table;
-use crate::code_point_table::CodePointInfo;
 use crate::constants::{COMPATIBILITY_IDENTIFIER_PART, LINE_TERMINATOR, MAX_BMP, WHITE_SPACE};
 use crate::derived_core_properties;
 use proc_macro2;
@@ -36,20 +35,20 @@ pub const FLAG_UNICODE_ID_CONTINUE_ONLY: u8 = 1 << 2;
 /// For a code point `c`, store relevant information about it.
 #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
 pub struct CharacterInfo {
-    /// A number `lower_delta` which, when added to the code point to which this
-    /// `CharacterInfo` pertains, produces the lowercased version of the code
-    /// point.  (For example, because of the
-    /// U+0041 LATIN CAPITAL LETTER A -> U+0061 LATIN SMALL LETTER A lowercasing
-    /// relationship, for the former code point we will have
-    /// `lower_delta = CaseDelta(0x61 - 0x41)`.)
-    pub lower_delta: CaseDelta,
-
-    // A number `upper_delta` that provides the same functionality as
-    // `lower_delta`, for a transformation to uppercase.  (For example, because
-    // of the U+0061 LATIN SMALL LETTER A -> U+0041 LATIN CAPITAL LETTER A
-    // uppercasing relationship, for the former code point we will have
-    // `upper_delta = CaseDelta(0x41 - 0x61)` (with wrapping).
+    /// A number `upper_delta` which, when added (with wrapping) to the code
+    /// point to which this `CharacterInfo` pertains, produces the uppercase
+    /// version of the code point.  (For example, because of the
+    /// `U+0061 LATIN SMALL LETTER A -> U+0041 LATIN CAPITAL LETTER A`
+    /// uppercasing relationship, for the former code point we will have
+    /// `upper_delta = CaseDelta(u16::wrapping_sub(0x41, 0x61))`.)
     pub upper_delta: CaseDelta,
+
+    // A number `lower_delta` that provides the same functionality as
+    // `upper_delta`, for a transformation to lowercase.  (For example, because
+    // of the `U+0041 LATIN CAPITAL LETTER A -> U+0061 LATIN SMALL LETTER A`
+    // lowercasing relationship, for the former code point we will have
+    // `lower_delta = CaseDelta(0x61 - 0x41)`.
+    pub lower_delta: CaseDelta,
 
     /// A bitwise-or of zero or more of [`FLAG_SPACE`],
     /// [`FLAG_UNICODE_ID_START`], and [`FLAG_UNICODE_ID_CONTINUE_ONLY`].
@@ -130,28 +129,24 @@ pub fn generate_bmp_info(
     let mut cache = HashMap::<CharacterInfo, u32>::new();
     cache.insert(CharacterInfo::all_zeroes(), 0);
 
-    for (code, info) in code_point_table.iter().filter_map(|pair| {
-        if *pair.0 <= MAX_BMP {
-            Some((*pair.0 as u16, pair.1))
-        } else {
-            None
-        }
-    }) {
-        let CodePointInfo {
-            category,
-            uppercase,
-            lowercase,
-            ..
-        } = info;
+    for code_point in code_point_table
+        .iter()
+        .filter(|code_point| code_point.code <= MAX_BMP)
+    {
+        let code = code_point.code;
+        let category = code_point.category();
+        let uppercase = code_point.uppercase();
+        let lowercase = code_point.lowercase();
 
-        let lower_delta = CaseDelta(u16::wrapping_sub(*lowercase as u16, code));
-        let upper_delta = CaseDelta(u16::wrapping_sub(*uppercase as u16, code));
+        assert!(uppercase <= MAX_BMP);
+        assert!(lowercase <= MAX_BMP);
+
+        let lower_delta = CaseDelta(u16::wrapping_sub(lowercase as u16, code as u16));
+        let upper_delta = CaseDelta(u16::wrapping_sub(uppercase as u16, code as u16));
 
         let mut flags = 0;
 
-        let code = code as u32;
-
-        if category == &"Zs" || WHITE_SPACE.contains(&code) || LINE_TERMINATOR.contains(&code) {
+        if category == "Zs" || WHITE_SPACE.contains(&code) || LINE_TERMINATOR.contains(&code) {
             flags |= FLAG_SPACE;
         }
 
@@ -164,8 +159,8 @@ pub fn generate_bmp_info(
         }
 
         let item = CharacterInfo {
-            lower_delta,
             upper_delta,
+            lower_delta,
             flags,
         };
 

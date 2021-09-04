@@ -48,22 +48,29 @@ pub fn generate_non_bmp_info(code_point_table: &code_point_table::CodePointTable
     let mut id_start_set = CodePointSet::new();
     let mut id_continue_set = CodePointSet::new();
 
-    for entry in code_point_table.iter().filter(|(&code, _)| code > MAX_BMP) {
-        let (code, info) = entry;
-        if *code != info.lowercase {
-            lowercase_map.insert(*code, info.lowercase);
+    for code_point in code_point_table
+        .iter()
+        .filter(|code_point| code_point.code > MAX_BMP)
+    {
+        let code = code_point.code;
+
+        let lower = code_point.lowercase();
+        if code != lower {
+            lowercase_map.insert(code, lower);
         }
-        if *code != info.uppercase {
-            uppercase_map.insert(*code, info.uppercase);
+
+        let upper = code_point.uppercase();
+        if code != upper {
+            uppercase_map.insert(code, upper);
         }
-        if info.category == "Zs" {
-            space_set.insert(*code);
+        if code_point.category() == "Zs" {
+            space_set.insert(code);
         }
-        if derived_id_start.contains(code) {
-            id_start_set.insert(*code);
+        if derived_id_start.contains(&code) {
+            id_start_set.insert(code);
         }
-        if derived_id_continue.contains(code) {
-            id_continue_set.insert(*code);
+        if derived_id_continue.contains(&code) {
+            id_continue_set.insert(code);
         }
     }
 

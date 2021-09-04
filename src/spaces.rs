@@ -17,13 +17,17 @@ use crate::types::CodePointSet;
 /// Separator", i.e. "Zs", category.
 pub fn compute_white_space(code_point_table: &code_point_table::CodePointTable) -> CodePointSet {
     let mut space_set = CodePointSet::new();
-    for (code, info) in code_point_table.iter() {
-        if info.category == "Zs" || WHITE_SPACE.contains(code) || LINE_TERMINATOR.contains(code) {
+    for code_point in code_point_table.iter() {
+        let code = code_point.code;
+        if code_point.category() == "Zs"
+            || WHITE_SPACE.contains(&code)
+            || LINE_TERMINATOR.contains(&code)
+        {
             assert!(
-                *code <= MAX_BMP,
+                code <= MAX_BMP,
                 "js::unicode::IsSpace(char32_t) depends upon non non-BMP spaces existing"
             );
-            space_set.insert(*code);
+            space_set.insert(code);
         }
     }
     space_set
