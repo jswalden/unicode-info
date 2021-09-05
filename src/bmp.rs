@@ -3,6 +3,7 @@
 use crate::code_point_table;
 use crate::constants::{COMPATIBILITY_IDENTIFIER_PART, LINE_TERMINATOR, MAX_BMP, WHITE_SPACE};
 use crate::derived_core_properties;
+use crate::types::{Flags, MappedCodePoint};
 use proc_macro2;
 use quote::quote;
 use std::collections::HashMap;
@@ -22,16 +23,6 @@ impl quote::ToTokens for CaseDelta {
     }
 }
 
-/// Flag indicating a code point is treated as a JavaScript spacing character.
-pub const FLAG_SPACE: u8 = 1 << 0;
-
-/// Flag indicating a code point may appear at the start of an identifier.
-pub const FLAG_UNICODE_ID_START: u8 = 1 << 1;
-
-/// Flag indicating a code point may appear in an identifier only after the
-/// first code point in the identifier.
-pub const FLAG_UNICODE_ID_CONTINUE_ONLY: u8 = 1 << 2;
-
 /// For a code point `c`, store relevant information about it.
 #[derive(Copy, Clone, Debug, Hash, PartialEq, Eq)]
 pub struct CharacterInfo {
@@ -50,9 +41,8 @@ pub struct CharacterInfo {
     // `lower_delta = CaseDelta(0x61 - 0x41)`.
     pub lower_delta: CaseDelta,
 
-    /// A bitwise-or of zero or more of [`FLAG_SPACE`],
-    /// [`FLAG_UNICODE_ID_START`], and [`FLAG_UNICODE_ID_CONTINUE_ONLY`].
-    pub flags: u8,
+    /// Flags pertaining to the associated code point.
+    pub flags: Flags,
 }
 
 impl CharacterInfo {
@@ -62,7 +52,22 @@ impl CharacterInfo {
         CharacterInfo {
             lower_delta: CaseDelta(0),
             upper_delta: CaseDelta(0),
-            flags: 0,
+            flags: Flags(0),
+        }
+    }
+
+    pub fn apply(&self, code: u32) -> MappedCodePoint {
+        assert!(
+            code <= MAX_BMP,
+            "case info only tracked for BMP code points"
+        );
+
+        let upper = u16::wrapping_add(code as u16, self.upper_delta.0) as u32;
+        let lower = u16::wrapping_add(code as u16, self.lower_delta.0) as u32;
+        MappedCodePoint {
+            upper,
+            lower,
+            flags: self.flags,
         }
     }
 }
@@ -144,18 +149,18 @@ pub fn generate_bmp_info(
         let lower_delta = CaseDelta(u16::wrapping_sub(lowercase as u16, code as u16));
         let upper_delta = CaseDelta(u16::wrapping_sub(uppercase as u16, code as u16));
 
-        let mut flags = 0;
+        let mut flags = Flags(0);
 
         if category == "Zs" || WHITE_SPACE.contains(&code) || LINE_TERMINATOR.contains(&code) {
-            flags |= FLAG_SPACE;
+            flags.set_space();
         }
 
         if derived_properties.id_start.contains(&code) {
-            flags |= FLAG_UNICODE_ID_START;
+            flags.set_unicode_id_start();
         } else if derived_properties.id_continue.contains(&code)
             || COMPATIBILITY_IDENTIFIER_PART.contains(&code)
         {
-            flags |= FLAG_UNICODE_ID_CONTINUE_ONLY;
+            flags.set_unicode_id_continue_only();
         }
 
         let item = CharacterInfo {

@@ -142,7 +142,8 @@ fn non_bmp_space_set_is_empty() {
     let non_bmp_info = generate_non_bmp_info(&table);
     assert!(
         non_bmp_info.space_set.is_empty(),
-        "js::unicode::IsSpace(char32) is defined assuming there are no non-BMP space characters"
+        "js::unicode::IsSpace(char32) is defined assuming there are no non-BMP \
+         space characters"
     );
 }
 

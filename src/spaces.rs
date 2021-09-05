@@ -25,7 +25,8 @@ pub fn compute_white_space(code_point_table: &code_point_table::CodePointTable) 
         {
             assert!(
                 code <= MAX_BMP,
-                "js::unicode::IsSpace(char32_t) depends upon non non-BMP spaces existing"
+                "js::unicode::IsSpace(char32_t) depends upon non non-BMP \
+                 spaces existing"
             );
             space_set.insert(code);
         }

@@ -259,8 +259,13 @@ fn check_case_folding() {
         bmp_folding_table,
     } = process_case_folding();
 
-    assert!(all_codes_with_equivalents.contains(&(0x0399, vec![0x03B9, 0x0345, 0x1FBE])),
-            "GREEK CAPITAL LETTER IOTA, GREEK SMALL LETTER IOTA, COMBINING GREEK YPOGEGRAMMENI (GREEK NON-SPACING IOTA BELOW), GREEK PROSGEGRAMMENI");
+    assert!(
+        all_codes_with_equivalents.contains(&(0x0399, vec![0x03B9, 0x0345, 0x1FBE])),
+        "GREEK CAPITAL LETTER IOTA, \
+             GREEK SMALL LETTER IOTA, \
+             COMBINING GREEK YPOGEGRAMMENI (GREEK NON-SPACING IOTA BELOW), \
+             GREEK PROSGEGRAMMENI"
+    );
 
     assert_eq!(
         bmp_folding_table[bmp_folding_index[0x0041] as usize],

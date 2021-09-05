@@ -8,5 +8,6 @@ pub mod constants;
 pub mod derived_core_properties;
 pub mod non_bmp;
 pub mod spaces;
+pub mod special_casing;
 pub mod table;
 pub mod types;
