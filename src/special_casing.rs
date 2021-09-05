@@ -1,19 +1,21 @@
 //! Processes `SpecialCasing.txt` to extract all special casing information.
 
 use crate::bmp;
-#[cfg(test)]
-use crate::code_point_table;
-use crate::constants::{
-    COMBINING_DOT_ABOVE, GREEK_CAPITAL_LETTER_SIGMA, GREEK_SMALL_LETTER_FINAL_SIGMA,
-    GREEK_SMALL_LETTER_SIGMA, LATIN_CAPITAL_LETTER_I_WITH_DOT_ABOVE, LATIN_CAPITAL_LETTER_S,
-    LATIN_SMALL_LETTER_I, LATIN_SMALL_LETTER_SHARP_S, MAX_BMP,
-};
-#[cfg(test)]
-use crate::derived_core_properties;
+use crate::constants::MAX_BMP;
 use crate::types::MappedCodePoint;
+#[cfg(test)]
+use crate::{
+    code_point_table,
+    constants::{
+        COMBINING_DOT_ABOVE, GREEK_CAPITAL_LETTER_SIGMA, GREEK_SMALL_LETTER_FINAL_SIGMA,
+        GREEK_SMALL_LETTER_SIGMA, LATIN_CAPITAL_LETTER_I_WITH_DOT_ABOVE, LATIN_CAPITAL_LETTER_S,
+        LATIN_SMALL_LETTER_I, LATIN_SMALL_LETTER_SHARP_S,
+    },
+    derived_core_properties,
+};
 use std::collections::BTreeMap;
-use std::collections::HashSet;
-use std::iter::FromIterator;
+#[cfg(test)]
+use std::{collections::HashSet, iter::FromIterator};
 
 static SPECIAL_CASING_TXT: &str = include_str!("data/SpecialCasing.txt");
 
@@ -236,172 +238,6 @@ pub fn process_special_casing(bmp: &bmp::BMPInfo) -> SpecialCasingData {
                 }
             }
         };
-    }
-
-    // Processing complete: now perform a heckton of assertions of assumptions
-    // made here (and elsewhere, notably builtin/String.cpp) about
-    // special-casing rules.
-    {
-        let lower_case = |code| case_info(code).lower;
-        let upper_case = |code| case_info(code).upper;
-
-        fn accept_ascii(code: &&u32) -> bool {
-            **code <= 0x7F
-        }
-        fn accept_latin1(code: &&u32) -> bool {
-            **code <= 0xFF
-        }
-
-        fn is_empty<I>(mut iter: I) -> bool
-        where
-            I: Iterator,
-        {
-            iter.next().is_none()
-        }
-
-        // Ensure no ASCII characters have special case mappings.
-        assert!(is_empty(unconditional_tolower.keys().filter(accept_ascii)));
-        assert!(is_empty(unconditional_toupper.keys().filter(accept_ascii)));
-        assert!(is_empty(conditional_tolower.keys().filter(accept_ascii)));
-        assert!(is_empty(conditional_toupper.keys().filter(accept_ascii)));
-
-        // Ensure no Latin-1 characters have special lower case mappings.
-        assert!(is_empty(unconditional_tolower.keys().filter(accept_latin1)));
-        assert!(is_empty(conditional_tolower.keys().filter(accept_latin1)));
-
-        // Ensure no Latin-1 characters have conditional special upper case
-        // mappings.
-        assert!(is_empty(conditional_toupper.keys().filter(accept_latin1)));
-
-        // Ensure U+00DF LATIN SMALL LETTER SHARP S is the only Latin-1
-        // character with a special upper case mapping.
-        assert!([LATIN_SMALL_LETTER_SHARP_S]
-            .iter()
-            .eq(unconditional_toupper.keys().filter(accept_latin1)));
-
-        // Ensure U+0130 LATIN CAPITAL LETTER I WITH DOT ABOVE is the only
-        // character with a special lower case mapping.
-        assert!([LATIN_CAPITAL_LETTER_I_WITH_DOT_ABOVE]
-            .iter()
-            .eq(unconditional_tolower.keys()));
-
-        // Ensure no characters have language-independent conditional upper case
-        // mappings.
-        assert!(is_empty(conditional_toupper.iter()));
-
-        // Ensure U+03A3 GREEK CAPITAL LETTER SIGMA is the only character with
-        // language-independent conditional lower case mapping.
-        assert!([GREEK_CAPITAL_LETTER_SIGMA]
-            .iter()
-            .eq(conditional_tolower.keys()));
-
-        // Verify U+0130 LATIN CAPITAL LETTER I WITH DOT ABOVE and
-        // U+03A3 GREEK CAPITAL LETTER SIGMA have simple, non-identity lower
-        // case mappings.
-        assert!([
-            LATIN_CAPITAL_LETTER_I_WITH_DOT_ABOVE,
-            GREEK_CAPITAL_LETTER_SIGMA
-        ]
-        .iter()
-        .all(|ch| *ch != lower_case(*ch)));
-
-        // Ensure Azeri, Lithuanian, and Turkish are the only languages with
-        // conditional case mappings.
-        assert_eq!(
-            vec![&"az", &"lt", &"tr"],
-            lang_conditional_tolower
-                .keys()
-                .collect::<Vec<&&'static str>>()
-        );
-        assert_eq!(
-            vec![&"az", &"lt", &"tr"],
-            lang_conditional_toupper
-                .keys()
-                .collect::<Vec<&&'static str>>()
-        );
-
-        // Verify that the maximum case-mapping length is three characters.
-        // (Do we depend/rely on this anywhere?  It would be trivial to return
-        // this maximum from this code for a code-based dependency...)
-        assert!(
-            unconditional_tolower
-                .values()
-                .chain(unconditional_toupper.values())
-                .chain(
-                    conditional_tolower
-                        .values()
-                        .map(|(replacements, _)| replacements),
-                )
-                .chain(
-                    conditional_toupper
-                        .values()
-                        .map(|(replacements, _)| replacements),
-                )
-                .map(|replacements| replacements.len())
-                .max()
-                .expect("replacement list is nonempty")
-                <= 3,
-            "the maximum replacement-sequence length is three code points"
-        );
-
-        // Ensure all case mapping contexts are known (see Unicode 9.0,
-        // §3.13 Default Case Algorithms).
-        assert!(HashSet::<&'static str>::from_iter([
-            "After_I",
-            "After_Soft_Dotted",
-            "Final_Sigma",
-            "More_Above",
-            "Not_Before_Dot",
-        ])
-        .is_superset(
-            &(conditional_tolower.values().map(|(_, context)| *context))
-                .chain(conditional_toupper.values().map(|(_, context)| *context))
-                .chain(
-                    lang_conditional_tolower
-                        .values()
-                        .flat_map(|dict| dict.values())
-                        .filter_map(|(_, context)| match *context {
-                            Some(context) => Some(context),
-                            None => None,
-                        }),
-                )
-                .chain(
-                    lang_conditional_toupper
-                        .values()
-                        .flat_map(|dict| dict.values())
-                        .filter_map(|(_, context)| match *context {
-                            Some(context) => Some(context),
-                            None => None,
-                        }),
-                )
-                .collect::<HashSet<&'static str>>()
-        ));
-
-        // Special casing for U+00DF LATIN SMALL LETTER SHARP S.
-        assert_eq!(
-            upper_case(LATIN_SMALL_LETTER_SHARP_S),
-            LATIN_SMALL_LETTER_SHARP_S
-        );
-        assert_eq!(
-            unconditional_toupper[&LATIN_SMALL_LETTER_SHARP_S],
-            [LATIN_CAPITAL_LETTER_S, LATIN_CAPITAL_LETTER_S]
-        );
-
-        // Special casing for U+0130 LATIN CAPITAL LETTER I WITH DOT ABOVE.
-        assert_eq!(
-            unconditional_tolower[&LATIN_CAPITAL_LETTER_I_WITH_DOT_ABOVE],
-            [LATIN_SMALL_LETTER_I, COMBINING_DOT_ABOVE]
-        );
-
-        // Special casing for U+03A3 GREEK CAPITAL LETTER SIGMA.
-        assert_eq!(
-            lower_case(GREEK_CAPITAL_LETTER_SIGMA),
-            GREEK_SMALL_LETTER_SIGMA
-        );
-        assert_eq!(
-            conditional_tolower[&GREEK_CAPITAL_LETTER_SIGMA],
-            (vec![GREEK_SMALL_LETTER_FINAL_SIGMA], "Final_Sigma")
-        );
     }
 
     SpecialCasingData {
