@@ -110,6 +110,14 @@ pub type UnconditionalMapping = BTreeMap<u32, Vec<u32>>; // BTreeMap offers sort
 /// context, if language-dependency is implicit in where this type appears.)
 pub type ContextualMapping<Context> = BTreeMap<u32, (Vec<u32>, Context)>;
 
+/// Casing mappings computed from `SpecialCasing.txt`.
+///
+/// Some case mappings are applied only in contexts where ICU will handle things
+/// for us, or where we can simply inline the relevant handling and not depend
+/// on a fully generalized system.  If this changes, the `#[cfg(test)]`
+/// attributes on some of these fields may have to be removed and the fields
+/// made public.  Assertions in a test function far below hopefully will be able
+/// to detect this.
 pub struct SpecialCasingData {
     /// Unconditional mappings, performed for all languages and contexts, when
     /// lowercasing.
@@ -121,17 +129,11 @@ pub struct SpecialCasingData {
 
     /// Lowercasings that apply in particular contexts but independent of
     /// language.
-    ///
-    /// Presently the only code point that appears here is
-    /// U+03A3 GREEK CAPITAL LETTER SIGMA.
     #[cfg(test)]
     conditional_tolower: ContextualMapping<&'static str>,
 
     /// Uppercasings that apply in particular contexts but independent of
     /// language.
-    ///
-    /// Presently there are no code points that uppercase differently in
-    /// different contexts, independent of language, so this map is empty.
     #[cfg(test)]
     conditional_toupper: ContextualMapping<&'static str>,
 
