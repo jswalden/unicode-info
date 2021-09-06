@@ -2,14 +2,13 @@
 //! specific module.
 
 use quote::quote;
-use std::collections::{HashMap, HashSet};
 
 /// A set of code point values.
-pub type CodePointSet = HashSet<u32>;
+pub type CodePointSet = std::collections::BTreeSet<u32>; // BTreeSet for sorting
 
 /// A mapping from code points to their case-mapped form (uppercase or lowercase
 /// as stated in context).
-pub type CaseMap = HashMap<u32, u32>;
+pub type CaseMap = std::collections::BTreeMap<u32, u32>; // BTreeMap for sorting
 
 /// An enum denoting a Rust numeric type.
 #[derive(Copy, Clone, PartialEq, Eq, Debug)]
