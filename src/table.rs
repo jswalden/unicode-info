@@ -142,7 +142,7 @@ fn test_maximum_shift() {
 ///     let index1_entry = index1[i >> N];
 ///     let index1_index_component = index1_entry << N;
 ///     let mask_component = i & mask;
-///     assert!(t[i], index2[index1_index_component + mask_component]);
+///     assert_eq!(t[i], index2[index1_index_component + mask_component]);
 /// }
 /// ```
 /// The idea is, we determine which `2**N`-element bucket size produces few
