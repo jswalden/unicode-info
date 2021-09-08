@@ -56,11 +56,21 @@ pub fn generate_non_bmp_info(code_point_table: &code_point_table::CodePointTable
 
         let lower = code_point.lowercase();
         if code != lower {
+            assert!(
+                lower > MAX_BMP,
+                "to_lower_case_non_bmp_trail and its users assume that every
+                non-BMP code point maps to a non-BMP code point"
+            );
             lowercase_map.insert(code, lower);
         }
 
         let upper = code_point.uppercase();
         if code != upper {
+            assert!(
+                upper > MAX_BMP,
+                "to_upper_case_non_bmp_trail and its users assume that every
+                 non-BMP code point maps to a non-BMP code point"
+            );
             uppercase_map.insert(code, upper);
         }
         if code_point.category() == "Zs" {
