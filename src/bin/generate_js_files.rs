@@ -4,9 +4,12 @@ use std::fs::File;
 use std::io;
 use std::io::Write;
 use std::path::PathBuf;
+use unicode_info::bmp;
 use unicode_info::case_folding;
 use unicode_info::code_point_table;
+use unicode_info::constants::MAX_BMP;
 use unicode_info::derived_core_properties;
+use unicode_info::special_casing;
 
 const PRODUCTION: bool = false;
 
@@ -46,7 +49,90 @@ fn generate_string_code_point_upper_lower_mapping_js() -> io::Result<()> {
     Ok(())
 }
 
-fn generate_string_upper_lower_mapping_js() -> io::Result<()> {
+fn generate_string_upper_lower_mapping_js(
+    version: &str,
+    cpt: &code_point_table::CodePointTable,
+    special_casing: &special_casing::SpecialCasingData,
+) -> io::Result<()> {
+    let special_casing::SpecialCasingData {
+        unconditional_toupper,
+        unconditional_tolower,
+        ..
+    } = special_casing;
+
+    fn unicode_esc(code: u32) -> String {
+        format!("\\u{:04X}", code)
+    }
+
+    fn to_mapped_string(codes: Vec<u32>, func: &dyn Fn(u32) -> String) -> String {
+        codes.into_iter().map(func).collect()
+    }
+
+    let mut str = String::new();
+
+    str += WARNING_MESSAGE;
+    str += unicode_version_comment(version).as_str();
+    str += PUBLIC_DOMAIN;
+
+    str += r#"var mapping = [
+"#;
+
+    for code in 0..=MAX_BMP {
+        match cpt.get(code) {
+            Some(code_point) => {
+                let upper = code_point.uppercase();
+                let upper = match unconditional_toupper.get(&code_point.code) {
+                    Some(code) => code.clone(),
+                    None => vec![upper],
+                };
+
+                let lower = code_point.lowercase();
+                let lower = match unconditional_tolower.get(&code_point.code) {
+                    Some(code) => code.clone(),
+                    None => vec![lower],
+                };
+
+                str += format!(
+                    r#"  ["{upper}", "{lower}"], /* {name} */
+"#,
+                    upper = to_mapped_string(upper, &unicode_esc),
+                    lower = to_mapped_string(lower, &unicode_esc),
+                    name = cpt.name(code),
+                )
+                .as_str();
+            }
+            None => {
+                str += format!(
+                    r#"  ["{code}", "{code}"],
+"#,
+                    code = unicode_esc(code)
+                )
+                .as_str();
+            }
+        }
+    }
+    str += r#"];
+"#;
+
+    str += r#"
+assertEq(mapping.length, 0x10000);
+for (var i = 0; i <= 0xffff; i++) {
+    var char = String.fromCharCode(i);
+    var info = mapping[i];
+
+    assertEq(char.toUpperCase(), info[0]);
+    assertEq(char.toLowerCase(), info[1]);
+}
+
+if (typeof reportCompare === "function")
+    reportCompare(true, true);
+"#;
+
+    write_file(
+        "js/src/tests/non262/String/string-upper-lower-mapping.js",
+        str,
+    )?;
+
     Ok(())
 }
 
@@ -136,13 +222,17 @@ fn main() -> io::Result<()> {
     let version: &'static str = derived_core_properties::unicode_version();
 
     let table = code_point_table::generate_code_point_table();
+    let dcp = derived_core_properties::process_derived_core_properties();
+    let bmp = bmp::generate_bmp_info(&table, &dcp);
 
     let case_folding = case_folding::process_case_folding();
+
+    let special_casing = special_casing::process_special_casing(&bmp);
 
     generate_regexp_character_class_escape_js()?;
     generate_string_space_trim_js()?;
     generate_string_code_point_upper_lower_mapping_js()?;
-    generate_string_upper_lower_mapping_js()?;
+    generate_string_upper_lower_mapping_js(&version, &table, &special_casing)?;
     generate_unicode_ignorecase_js(&version, &case_folding.all_codes_with_equivalents, &table)?;
 
     Ok(())

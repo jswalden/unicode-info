@@ -271,6 +271,15 @@ impl CodePointTable {
         format!("U+{code:04X} {name}", code = code, name = self.name(code))
     }
 
+    /// Get the `CodePoint` for the provided code, if `UnicodeData.txt`
+    /// includes it.
+    pub fn get(&self, code: u32) -> Option<CodePoint> {
+        match self.map.get(&code) {
+            Some(info) => Some(CodePoint { code, info: *info }),
+            None => None,
+        }
+    }
+
     /// Return an iterator (in sorted order) over all code points and their info
     /// in this table.
     pub fn iter(&self) -> CodePointTableIter {
