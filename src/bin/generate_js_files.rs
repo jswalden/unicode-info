@@ -9,6 +9,7 @@ use unicode_info::case_folding;
 use unicode_info::code_point_table;
 use unicode_info::constants::MAX_BMP;
 use unicode_info::derived_core_properties;
+use unicode_info::non_bmp;
 use unicode_info::special_casing;
 
 const PRODUCTION: bool = false;
@@ -45,7 +46,47 @@ fn generate_regexp_character_class_escape_js() -> io::Result<()> {
     Ok(())
 }
 
-fn generate_string_code_point_upper_lower_mapping_js() -> io::Result<()> {
+fn generate_string_code_point_upper_lower_mapping_js(
+    version: &str,
+    table: &code_point_table::CodePointTable,
+    non_bmp: &non_bmp::NonBMPInfo,
+) -> io::Result<()> {
+    let non_bmp::NonBMPInfo {
+        uppercase_map,
+        lowercase_map,
+        ..
+    } = non_bmp;
+
+    let mut str = String::new();
+
+    str += WARNING_MESSAGE;
+    str += unicode_version_comment(version).as_str();
+    str += PUBLIC_DOMAIN;
+
+    for (code, mapping) in uppercase_map.iter() {
+        let (code, mapping) = (*code, *mapping);
+        str += format!(r#"assertEq(String.fromCodePoint({code:#06X}).toUpperCase().codePointAt(0), {upper:#06X}); // {name}, {upper_name}
+"#, code = code, upper = mapping, name = table.name(code), upper_name = table.name(mapping)
+).as_str();
+    }
+
+    for (code, mapping) in lowercase_map.iter() {
+        let (code, mapping) = (*code, *mapping);
+        str += format!(r#"assertEq(String.fromCodePoint({code:#06X}).toLowerCase().codePointAt(0), {lower:#06X}); // {name}, {lower_name}
+"#, code = code, lower = mapping, name = table.name(code), lower_name = table.name(mapping)
+).as_str();
+    }
+
+    str += r#"
+if (typeof reportCompare === "function")
+    reportCompare(true, true);
+"#;
+
+    write_file(
+        "js/src/tests/non262/String/string-code-pointupper-lower-mapping.js",
+        str,
+    )?;
+
     Ok(())
 }
 
@@ -224,6 +265,7 @@ fn main() -> io::Result<()> {
     let table = code_point_table::generate_code_point_table();
     let dcp = derived_core_properties::process_derived_core_properties();
     let bmp = bmp::generate_bmp_info(&table, &dcp);
+    let non_bmp = non_bmp::generate_non_bmp_info(&table);
 
     let case_folding = case_folding::process_case_folding();
 
@@ -231,7 +273,7 @@ fn main() -> io::Result<()> {
 
     generate_regexp_character_class_escape_js()?;
     generate_string_space_trim_js()?;
-    generate_string_code_point_upper_lower_mapping_js()?;
+    generate_string_code_point_upper_lower_mapping_js(&version, &table, &non_bmp)?;
     generate_string_upper_lower_mapping_js(&version, &table, &special_casing)?;
     generate_unicode_ignorecase_js(&version, &case_folding.all_codes_with_equivalents, &table)?;
 
