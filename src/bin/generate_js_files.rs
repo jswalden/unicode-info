@@ -1,5 +1,7 @@
+extern crate itertools;
 extern crate unicode_info;
 
+use itertools::Itertools;
 use std::fs::File;
 use std::io;
 use std::io::Write;
@@ -10,7 +12,9 @@ use unicode_info::code_point_table;
 use unicode_info::constants::MAX_BMP;
 use unicode_info::derived_core_properties;
 use unicode_info::non_bmp;
+use unicode_info::spaces;
 use unicode_info::special_casing;
+use unicode_info::types;
 
 const PRODUCTION: bool = false;
 
@@ -177,9 +181,50 @@ if (typeof reportCompare === "function")
     Ok(())
 }
 
-fn generate_string_space_trim_js() -> io::Result<()> {
+fn generate_string_space_trim_js(
+    version: &str,
+    space_set: &types::CodePointSet,
+    table: &code_point_table::CodePointTable,
+) -> io::Result<()> {
+    let hex_and_name = |code| {
+        format!(
+            "    {code:#06X} /* {name} */",
+            code = code,
+            name = table.name(code)
+        )
+    };
+
+    let mut str = String::new();
+
+    str += WARNING_MESSAGE;
+    str += unicode_version_comment(version).as_str();
+    str += PUBLIC_DOMAIN;
+
+    str += "var onlySpace = String.fromCharCode(\n";
+
+    str += Itertools::join(
+        &mut space_set.into_iter().map(|space| hex_and_name(*space)),
+        ",\n",
+    )
+    .as_str();
+
+    str += "\n);\n";
+
+    str += r#"
+assertEq(onlySpace.trim(), "");
+assertEq((onlySpace + 'aaaa').trim(), 'aaaa');
+assertEq(('aaaa' + onlySpace).trim(), 'aaaa');
+assertEq((onlySpace + 'aaaa' + onlySpace).trim(), 'aaaa');
+
+if (typeof reportCompare === "function")
+    reportCompare(true, true);
+"#;
+
+    write_file("js/src/tests/non262/String/string-space-trim.js", str)?;
+
     Ok(())
 }
+
 fn generate_unicode_ignorecase_js(
     version: &str,
     all_codes_with_equivalents: &Vec<case_folding::CodeWithEquivalents>,
@@ -266,13 +311,14 @@ fn main() -> io::Result<()> {
     let dcp = derived_core_properties::process_derived_core_properties();
     let bmp = bmp::generate_bmp_info(&table, &dcp);
     let non_bmp = non_bmp::generate_non_bmp_info(&table);
+    let space_set = spaces::compute_white_space(&table);
 
     let case_folding = case_folding::process_case_folding();
 
     let special_casing = special_casing::process_special_casing(&bmp);
 
     generate_regexp_character_class_escape_js()?;
-    generate_string_space_trim_js()?;
+    generate_string_space_trim_js(&version, &space_set, &table)?;
     generate_string_code_point_upper_lower_mapping_js(&version, &table, &non_bmp)?;
     generate_string_upper_lower_mapping_js(&version, &table, &special_casing)?;
     generate_unicode_ignorecase_js(&version, &case_folding.all_codes_with_equivalents, &table)?;
