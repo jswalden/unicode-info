@@ -46,7 +46,62 @@ const PUBLIC_DOMAIN: &str = r#"
  */
 "#;
 
-fn generate_regexp_character_class_escape_js() -> io::Result<()> {
+fn generate_regexp_character_class_escape_js(
+    version: &str,
+    space_set: &types::CodePointSet,
+    table: &code_point_table::CodePointTable,
+) -> io::Result<()> {
+    let hex_and_name = |code| {
+        format!(
+            "    {code:#06X} /* {name} */",
+            code = code,
+            name = table.name(code)
+        )
+    };
+
+    let mut str = String::new();
+
+    str += WARNING_MESSAGE;
+    str += unicode_version_comment(version).as_str();
+    str += PUBLIC_DOMAIN;
+
+    str += "var onlySpace = String.fromCodePoint(\n";
+
+    str += Itertools::join(
+        &mut space_set.into_iter().map(|space| hex_and_name(*space)),
+        ",\n",
+    )
+    .as_str();
+
+    str += "\n);\n";
+
+    str += r#"
+assertEq(/^\s+$/.exec(onlySpace) !== null, true);
+assertEq(/^[\s]+$/.exec(onlySpace) !== null, true);
+assertEq(/^[^\s]+$/.exec(onlySpace) === null, true);
+
+assertEq(/^\S+$/.exec(onlySpace) === null, true);
+assertEq(/^[\S]+$/.exec(onlySpace) === null, true);
+assertEq(/^[^\S]+$/.exec(onlySpace) !== null, true);
+
+// Also test with Unicode RegExps.
+assertEq(/^\s+$/u.exec(onlySpace) !== null, true);
+assertEq(/^[\s]+$/u.exec(onlySpace) !== null, true);
+assertEq(/^[^\s]+$/u.exec(onlySpace) === null, true);
+
+assertEq(/^\S+$/u.exec(onlySpace) === null, true);
+assertEq(/^[\S]+$/u.exec(onlySpace) === null, true);
+assertEq(/^[^\S]+$/u.exec(onlySpace) !== null, true);
+
+if (typeof reportCompare === "function")
+    reportCompare(true, true);
+"#;
+
+    write_file(
+        "js/src/tests/non262/RegExp/character-class-escape-s.js",
+        str,
+    )?;
+
     Ok(())
 }
 
@@ -317,7 +372,7 @@ fn main() -> io::Result<()> {
 
     let special_casing = special_casing::process_special_casing(&bmp);
 
-    generate_regexp_character_class_escape_js()?;
+    generate_regexp_character_class_escape_js(&version, &space_set, &table)?;
     generate_string_space_trim_js(&version, &space_set, &table)?;
     generate_string_code_point_upper_lower_mapping_js(&version, &table, &non_bmp)?;
     generate_string_upper_lower_mapping_js(&version, &table, &special_casing)?;
